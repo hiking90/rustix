@@ -117,15 +117,24 @@ fn test_statvfs_mount_flags_match_mountinfo() {
         };
         let options: Vec<&str> = options.split(',').collect();
         let flags = rustix::fs::statvfs(point).unwrap().f_flag;
-        for (option, flag) in [
+        #[allow(unused_mut)]
+        let mut pairs = vec![
             ("ro", Flags::RDONLY),
             ("nosuid", Flags::NOSUID),
             ("nodev", Flags::NODEV),
             ("noexec", Flags::NOEXEC),
             ("noatime", Flags::NOATIME),
             ("nodiratime", Flags::NODIRATIME),
-            ("relatime", Flags::RELATIME),
-        ] {
+        ];
+        // The libc backend has `RELATIME` only where libc defines
+        // `ST_RELATIME`.
+        #[cfg(any(
+            linux_raw,
+            target_os = "android",
+            all(target_os = "linux", target_env = "gnu")
+        ))]
+        pairs.push(("relatime", Flags::RELATIME));
+        for (option, flag) in pairs {
             assert_eq!(
                 flags.contains(flag),
                 options.contains(&option),
